@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/router';
 
 // 타입 정의
@@ -72,83 +72,106 @@ const getNextEnhanceInfo = (currentEnhance: number) => {
     const rate = ENHANCEMENT_RATES[currentEnhance];
     return `성공률: ${rate.success}%`;
 };
-
-// 드래그 가능한 무기 아이템 컴포넌트
-const WeaponItem = ({ item, onDragStart }: { item: Weapon; onDragStart: (e: any, item: Weapon) => void }) => (
-    <div
-        draggable
-        onDragStart={(e) => onDragStart(e, item)}
-        className="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center cursor-move relative group"
-    >
-        <span className="text-white">{getWeaponName(item.type)}</span>
-        {item.enhancement > 0 && (
-            <span className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-1 rounded-full">
-                +{item.enhancement}
-            </span>
-        )}
-        <div className="absolute inset-0 bg-black bg-opacity-80 text-white p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-            +{item.enhancement}강 {getWeaponName(item.type)}
-            <br />
-            {item.enhancement < 12 && getNextEnhanceInfo(item.enhancement)}
+const WeaponItem = ({ item, onDragStart }: { item: Weapon; onDragStart: any }) => {
+    return (
+        <div
+            draggable
+            onDragStart={(e) => {
+                e.dataTransfer?.setData('text/plain', JSON.stringify(item));
+                e.dataTransfer?.setData('itemType', 'weapon');
+            }}
+            className="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center cursor-move relative group"
+        >
+            <span className="text-white">{getWeaponName(item.type)}</span>
+            {item.enhancement > 0 && (
+                <span className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs px-1 rounded-full">
+                    +{item.enhancement}
+                </span>
+            )}
+            <div className="absolute inset-0 bg-black bg-opacity-80 text-white p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                +{item.enhancement}강 {getWeaponName(item.type)}
+                <br />
+                {item.enhancement < 12 && getNextEnhanceInfo(item.enhancement)}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
-// 드래그 가능한 강화석 아이템 컴포넌트
-const StoneItem = ({ type, count, onDragStart }: { type: 'normal' | 'advanced' | 'supreme'; count: number; onDragStart: any }) => (
-    <div
-        draggable
-        onDragStart={(e) => onDragStart(e, { type, count })}
-        className="w-16 h-16 bg-gray-700 rounded-lg flex flex-col items-center justify-center cursor-move relative group"
-    >
-        <span className="text-white text-sm">{
-            type === 'normal' ? '일반' :
-                type === 'advanced' ? '상급' : '고급'
-        } 강화석</span>
-        <span className="text-blue-400 text-xs">({count}개)</span>
-        <div className="absolute inset-0 bg-black bg-opacity-80 text-white p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-            {type === 'normal' ? '기본 강화석' :
-                type === 'advanced' ? '성공률 +5%' : '성공률 +10%'}
+const StoneItem = ({ type, count, onDragStart }: { type: 'normal' | 'advanced' | 'supreme'; count: number; onDragStart: any }) => {
+    return (
+        <div
+            draggable
+            onDragStart={(e) => {
+                e.dataTransfer?.setData('text/plain', JSON.stringify({ type, count }));
+                e.dataTransfer?.setData('itemType', 'stone');
+            }}
+            className="w-16 h-16 bg-gray-700 rounded-lg flex flex-col items-center justify-center cursor-move relative group"
+        >
+            <span className="text-white text-sm">{
+                type === 'normal' ? '일반' :
+                    type === 'advanced' ? '상급' : '고급'
+            } 강화석</span>
+            <span className="text-blue-400 text-xs">({count}개)</span>
+            <div className="absolute inset-0 bg-black bg-opacity-80 text-white p-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                {type === 'normal' ? '기본 강화석' :
+                    type === 'advanced' ? '성공률 +5%' : '성공률 +10%'}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
-// 드롭 영역 컴포넌트
-const DropZone = ({ item, onDrop, label }: { item: any; onDrop: (e: any) => void; label: string }) => (
-    <div
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={onDrop}
-        className="h-32 bg-gray-700 rounded-lg border-2 border-dashed border-gray-600 flex items-center justify-center relative"
-    >
-        {item ? (
-            item.type ? (
-                <StoneItem type={item.type} count={1} onDragStart={() => { }} />
+const DropZone = ({ item, onDrop, label, type = 'any' }: { item: any; onDrop: (e: any) => void; label: string; type?: 'weapon' | 'stone' | 'any' }) => {
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        const draggedItemType = e.dataTransfer?.getData('itemType');
+        if (type === 'any' || type === draggedItemType) {
+            e.dataTransfer.dropEffect = 'move';
+        }
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        const itemType = e.dataTransfer?.getData('itemType');
+
+        if (type !== 'any' && type !== itemType) {
+            return;
+        }
+
+        onDrop(e);
+    };
+
+    return (
+        <div
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            className="h-32 bg-gray-700 rounded-lg border-2 border-dashed border-gray-600 flex items-center justify-center relative"
+        >
+            {item ? (
+                'type' in item && 'count' in item ? (
+                    <StoneItem type={item.type} count={1} onDragStart={() => { }} />
+                ) : (
+                    <WeaponItem item={item} onDragStart={() => { }} />
+                )
             ) : (
-                <WeaponItem item={item} onDragStart={() => { }} />
-            )
-        ) : (
-            <span className="text-gray-400">{label}</span>
-        )}
-    </div>
-);
+                <span className="text-gray-400">{label}</span>
+            )}
+        </div>
+    );
+};
 
 export default function WeaponEnhance() {
     const router = useRouter();
     const { type } = router.query;
 
-    // 상태 관리
-    const [inventory, setInventory] = useState<Weapon[]>([]);
-    const [stoneInventory, setStoneInventory] = useState<StoneInventory[]>([]);
     const [enhanceSlots, setEnhanceSlots] = useState<EnhanceSlots>({
         weapon: null,
         stone: null,
         result: null
     });
-    const [stones, setStones] = useState({
-        normal: 0,
-        advanced: 0,
-        supreme: 0
-    });
+
+    const [inventory, setInventory] = useState<Weapon[]>([]);
+    const [stoneInventory, setStoneInventory] = useState<StoneInventory[]>([]);
+
     const [stats, setStats] = useState<Stats>({
         totalAttempts: 0,
         successes: 0,
@@ -156,6 +179,7 @@ export default function WeaponEnhance() {
         destroys: 0,
         maxEnhance: 0
     });
+
     const [usedResources, setUsedResources] = useState<UsedResources>({
         stones: 0,
         advancedStones: 0,
@@ -343,45 +367,80 @@ export default function WeaponEnhance() {
     };
 
     // 드래그 앤 드롭 핸들러
-    const handleDragStart = (e: DragEvent, item: Weapon) => {
-        e.dataTransfer?.setData('text/plain', JSON.stringify(item));
+    const handleDragStart = (e: DragEvent, item: any) => {
+        if ('type' in item && ('count' in item)) { // 강화석인 경우
+            e.dataTransfer?.setData('text/plain', JSON.stringify(item));
+            e.dataTransfer?.setData('itemType', 'stone');
+        } else { // 무기인 경우
+            e.dataTransfer?.setData('text/plain', JSON.stringify(item));
+            e.dataTransfer?.setData('itemType', 'weapon');
+        }
     };
 
-const handleWeaponDrop = (e: DragEvent) => {
-    e.preventDefault();  
-    const item = JSON.parse(e.dataTransfer?.getData('text/plain') || '{}');
-   
-    if (enhanceSlots.weapon) {
-        setInventory(prev => [...prev, enhanceSlots.weapon]); 
-    }
+    const handleWeaponDrop = (e: DragEvent) => {
+        e.preventDefault();
 
-    setEnhanceSlots(prev => ({ ...prev, weapon: item }));
+        const itemType = e.dataTransfer?.getData('itemType');
+        if (itemType !== 'weapon') return; // 무기가 아닌 경우 무시
 
-    setInventory(prev => prev.filter(w => w.id !== item.id));
-};
+        try {
+            const weaponData = JSON.parse(e.dataTransfer?.getData('text/plain') || '{}');
 
-const handleStoneDrop = (e: DragEvent) => {
-    e.preventDefault();
-    if (!enhanceSlots.weapon) return;  
-    const stoneType = e.dataTransfer?.getData('text/plain'); 
-
-    if (enhanceSlots.stone) {
-        setStoneInventory(prev => {
-            const existingStone = prev.find(s => s.type === enhanceSlots.stone?.type);
-            if (existingStone) {
-                return prev.map(s =>
-                    s.type === enhanceSlots.stone?.type
-                        ? { ...s, count: s.count + 1 }
-                        : s
-                );
-            } else {
-                return [...prev, { type: enhanceSlots.stone?.type, count: 1 }];
+            // 기존 무기가 있다면 인벤토리로 반환
+            if (enhanceSlots.weapon) {
+                setInventory(prev => [...prev, enhanceSlots.weapon!]);
             }
-        });
-    }
 
-    setEnhanceSlots(prev => ({ ...prev, stone: { type: stoneType } }));
-};
+            // 새 무기 설정
+            setEnhanceSlots(prev => ({ ...prev, weapon: weaponData }));
+
+            // 인벤토리에서 해당 무기 제거
+            setInventory(prev => prev.filter(w => w.id !== weaponData.id));
+        } catch (error) {
+            console.error('Weapon drop error:', error);
+        }
+    };
+
+    const handleStoneDrop = (e: DragEvent) => {
+        e.preventDefault();
+        if (!enhanceSlots.weapon) return;
+
+        const itemType = e.dataTransfer?.getData('itemType');
+        if (itemType !== 'stone') return;
+
+        try {
+            const stoneData = JSON.parse(e.dataTransfer?.getData('text/plain') || '{}');
+
+            // 기존 강화석이 있다면 인벤토리로 반환
+            if (enhanceSlots.stone) {
+                setStoneInventory(prev => {
+                    const existingStone = prev.find(s => s.type === enhanceSlots.stone?.type);
+                    if (existingStone) {
+                        return prev.map(s =>
+                            s.type === enhanceSlots.stone?.type
+                                ? { ...s, count: s.count + 1 }
+                                : s
+                        );
+                    }
+                    return [...prev, { type: enhanceSlots.stone?.type as any, count: 1 }];
+                });
+            }
+
+            // 새 강화석 설정
+            setEnhanceSlots(prev => ({ ...prev, stone: { type: stoneData.type } }));
+
+            // 인벤토리에서 강화석 감소
+            setStoneInventory(prev => {
+                return prev.map(s =>
+                    s.type === stoneData.type
+                        ? { ...s, count: s.count - 1 }
+                        : s
+                ).filter(s => s.count > 0);
+            });
+        } catch (error) {
+            console.error('Stone drop error:', error);
+        }
+    };
 
     // 결과 수집
     const collectResult = () => {
@@ -415,10 +474,10 @@ const handleStoneDrop = (e: DragEvent) => {
                 </div>
 
                 {/* 메인 컨텐츠 영역 */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    {/* 왼쪽: 강화 UI (2칸) */}
-                    <div className="lg:col-span-2 space-y-6">
-                        {/* 강화 UI 카드 */}
+                <div className="flex gap-6">
+                    {/* 왼쪽 섹션 - 65% */}
+                    <div className="w-[65%] space-y-6">
+                        {/* 강화 UI */}
                         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
                             <h2 className="text-2xl font-bold text-white mb-4">무기 강화</h2>
                             <div className="grid grid-cols-3 gap-4">
@@ -426,17 +485,20 @@ const handleStoneDrop = (e: DragEvent) => {
                                     item={enhanceSlots.weapon}
                                     onDrop={handleWeaponDrop}
                                     label="무기를 드래그하세요"
+                                    type="weapon"
                                 />
                                 <DropZone
                                     item={enhanceSlots.stone}
                                     onDrop={handleStoneDrop}
                                     label="강화석을 드래그하세요"
+                                    type="stone"
                                 />
                                 <div className="relative">
                                     <DropZone
                                         item={enhanceSlots.result}
                                         onDrop={() => { }}
                                         label="성공 시 결과"
+                                        type="any"
                                     />
                                     {enhanceSlots.result && (
                                         <button
@@ -486,78 +548,77 @@ const handleStoneDrop = (e: DragEvent) => {
                             </div>
                         </div>
 
-                        {/* 오른쪽: 제작 및 통계 (2칸) */}
-                        <div className="lg:col-span-2 space-y-6">
-                            {/* 무기 구매 */}
-                            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-                                <h2 className="text-2xl font-bold text-white mb-4">무기 구매</h2>
+                        {/* 사용된 재화 */}
+                        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                            <h2 className="text-2xl font-bold text-white mb-4">사용된 재화</h2>
+                            <div className="space-y-2 text-gray-300">
+                                <div className="space-y-1">
+                                    <p>강화석 사용: {usedResources.stones}개</p>
+                                    <p>상급 강화석: {usedResources.advancedStones}개</p>
+                                    <p>고급 강화석: {usedResources.supremeStones}개</p>
+                                </div>
+                                <div className="space-y-1 mt-4">
+                                    <p>소모된 재료:</p>
+                                    <p className="ml-4">철: {usedResources.iron}개</p>
+                                    <p className="ml-4">묵철: {usedResources.blackIron}개</p>
+                                    <p className="ml-4">오철: {usedResources.specialIron}개</p>
+                                    <p className="ml-4">청금석: {usedResources.lapis}개</p>
+                                </div>
+                                <div className="mt-4">
+                                    <p>강화석 제작 실패: {usedResources.failedAttempts}회</p>
+                                    <p>총 사용 금액: {usedResources.money.toLocaleString()}원</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 오른쪽 섹션 - 35% */}
+                    <div className="w-[35%] space-y-6">
+                        {/* 무기 구매 */}
+                        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                            <h2 className="text-2xl font-bold text-white mb-4">무기 구매</h2>
+                            <button
+                                onClick={purchaseWeapon}
+                                className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-lg py-2 transition-colors duration-200"
+                            >
+                                무기 구매 (1,000원)
+                            </button>
+                        </div>
+
+                        {/* 강화석 제작 */}
+                        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                            <h2 className="text-2xl font-bold text-white mb-4">강화석 제작</h2>
+                            <div className="space-y-2">
                                 <button
-                                    onClick={purchaseWeapon}
-                                    className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-lg py-2 transition-colors duration-200"
+                                    onClick={() => createStone('normal')}
+                                    className="w-full bg-gray-700 hover:bg-gray-600 text-white rounded-lg py-2 transition-colors duration-200"
                                 >
-                                    무기 구매 (1,000원)
+                                    일반 강화석 제작 ({stoneInventory.find(s => s.type === 'normal')?.count || 0})
+                                </button>
+                                <button
+                                    onClick={() => createStone('advanced')}
+                                    className="w-full bg-gray-700 hover:bg-gray-600 text-white rounded-lg py-2 transition-colors duration-200"
+                                >
+                                    상급 강화석 제작 ({stoneInventory.find(s => s.type === 'advanced')?.count || 0})
+                                </button>
+                                <button
+                                    onClick={() => createStone('supreme')}
+                                    className="w-full bg-gray-700 hover:bg-gray-600 text-white rounded-lg py-2 transition-colors duration-200"
+                                >
+                                    고급 강화석 제작 ({stoneInventory.find(s => s.type === 'supreme')?.count || 0})
                                 </button>
                             </div>
+                        </div>
 
-                            {/* 강화석 제작 */}
-                            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-                                <h2 className="text-2xl font-bold text-white mb-4">강화석 제작</h2>
-                                <div className="space-y-2">
-                                    <button
-                                        onClick={() => createStone('normal')}
-                                        className="w-full bg-gray-700 hover:bg-gray-600 text-white rounded-lg py-2 transition-colors duration-200"
-                                    >
-                                        일반 강화석 제작 ({stoneInventory.find(s => s.type === 'normal')?.count || 0})
-                                    </button>
-                                    <button
-                                        onClick={() => createStone('advanced')}
-                                        className="w-full bg-gray-700 hover:bg-gray-600 text-white rounded-lg py-2 transition-colors duration-200"
-                                    >
-                                        상급 강화석 제작 ({stoneInventory.find(s => s.type === 'advanced')?.count || 0})
-                                    </button>
-                                    <button
-                                        onClick={() => createStone('supreme')}
-                                        className="w-full bg-gray-700 hover:bg-gray-600 text-white rounded-lg py-2 transition-colors duration-200"
-                                    >
-                                        고급 강화석 제작 ({stoneInventory.find(s => s.type === 'supreme')?.count || 0})
-                                    </button>
-                                </div>
-                            </div>
-
-
-                            {/* 강화 통계 */}
-                            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-                                <h2 className="text-2xl font-bold text-white mb-4">강화 통계</h2>
-                                <div className="space-y-2 text-gray-300">
-                                    <p>총 시도: {stats.totalAttempts}회</p>
-                                    <p>성공: {stats.successes}회</p>
-                                    <p>실패: {stats.failures}회</p>
-                                    <p>파괴: {stats.destroys}회</p>
-                                    <p>최고 강화: +{stats.maxEnhance}</p>
-                                </div>
-                            </div>
-
-                            {/* 사용된 재화 */}
-                            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-                                <h2 className="text-2xl font-bold text-white mb-4">사용된 재화</h2>
-                                <div className="space-y-2 text-gray-300">
-                                    <div className="space-y-1">
-                                        <p>강화석 사용: {usedResources.stones}개</p>
-                                        <p>상급 강화석: {usedResources.advancedStones}개</p>
-                                        <p>고급 강화석: {usedResources.supremeStones}개</p>
-                                    </div>
-                                    <div className="space-y-1 mt-4">
-                                        <p>소모된 재료:</p>
-                                        <p className="ml-4">철: {usedResources.iron}개</p>
-                                        <p className="ml-4">묵철: {usedResources.blackIron}개</p>
-                                        <p className="ml-4">오철: {usedResources.specialIron}개</p>
-                                        <p className="ml-4">청금석: {usedResources.lapis}개</p>
-                                    </div>
-                                    <div className="mt-4">
-                                        <p>강화석 제작 실패: {usedResources.failedAttempts}회</p>
-                                        <p>총 사용 금액: {usedResources.money.toLocaleString()}원</p>
-                                    </div>
-                                </div>
+                        {/* 강화 통계 */}
+                        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                            <h2 className="text-2xl font-bold text-white mb-4">강화 통계</h2>
+                            <div className="space-y-2 text-gray-300">
+                                <p>총 시도: {stats.totalAttempts}회</p>
+                                <p>성공: {stats.successes}회</p>
+                                <p>실패: {stats.failures}회</p>
+                                <p>파괴: {stats.destroys}회</p>
+                                <p>최고 강화: +{stats.maxEnhance}</p>
                             </div>
                         </div>
                     </div>
